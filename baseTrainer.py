@@ -9,10 +9,10 @@ from tqdm import trange
 
 class baseTrainer:
 
-    def add_current_loss(self, i, params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST):
+    def calc_current_loss(self, i, params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST):
 
         """
-            現在の損失を保存
+            現在の損失を計算・保存
         """
 
         # 訓練誤差
@@ -128,13 +128,13 @@ class baseTrainer:
         with trange(self.epoch_nums) as self.pbar:
             
             # 損失を計算
-            self.add_current_loss(0, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
+            self.calc_current_loss(0, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
 
             for epoch_idx in self.pbar:
                 # モデルパラメータの更新
                 key, state = self.train_epoch(key, state, X_TRAIN, Y_TRAIN)
                 # 損失を計算
-                self.add_current_loss(epoch_idx+1, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
+                self.calc_current_loss(epoch_idx+1, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
 
         return state
     
