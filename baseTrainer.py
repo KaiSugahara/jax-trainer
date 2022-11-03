@@ -70,7 +70,7 @@ class baseTrainer:
         return state
     
     
-    @partial(jax.jit, static_argnums=0)
+    # @partial(jax.jit, static_argnums=0)
     def train_epoch(self, key, state, X_TRAIN, Y_TRAIN):
 
         """
