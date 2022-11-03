@@ -28,6 +28,12 @@ class baseTrainer:
             "test": test_loss,
         })
 
+        # tqdmの表示を更新
+        if self.pbar:
+            self.pbar.set_description(f"[Epoch {str(i).zfill(len(str(self.epoch_nums)))}/{self.epoch_nums}]")
+            self.pbar.set_postfix({"TRAIN_LOSS": train_loss, "TEST_LOSS": test_loss})
+
+
     def plot_loss_history(self, hide_init_loss=False):
 
         """
@@ -118,15 +124,17 @@ class baseTrainer:
         # 損失のリストを作成
         self.loss_history = []
 
-        # 学習前の損失を計算・保存
-        self.add_current_loss(0, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
-
         # 学習
-        for epoch_idx in trange(self.epoch_nums):
-            # 学習
-            key, state = self.train_epoch(key, state, X_TRAIN, Y_TRAIN)
-            # 損失を計算・保存
-            self.add_current_loss(epoch_idx+1, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
+        with trange(self.epoch_nums) as self.pbar:
+            
+            # 損失を計算
+            self.add_current_loss(0, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
+
+            for epoch_idx in self.pbar:
+                # モデルパラメータの更新
+                key, state = self.train_epoch(key, state, X_TRAIN, Y_TRAIN)
+                # 損失を計算
+                self.add_current_loss(epoch_idx+1, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
 
         return state
     
