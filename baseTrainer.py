@@ -30,7 +30,6 @@ class baseTrainer:
 
         # tqdmの表示を更新
         if self.pbar:
-            self.pbar.set_description(f"[Epoch {str(i).zfill(self.epoch_nums_digits)}/{self.epoch_nums}]")
             self.pbar.set_postfix({"TRAIN_LOSS": train_loss, "TEST_LOSS": test_loss})
 
 
@@ -108,9 +107,6 @@ class baseTrainer:
         # バッチ数（余りは切り捨て）
         self.batch_nums = X_TRAIN.shape[0] // self.batch_size
 
-        # 桁をカウント
-        self.epoch_nums_digits = len(str(self.epoch_nums))
-
         # PRNG keyを生成
         key = jax.random.PRNGKey(self.seed)
 
@@ -128,7 +124,7 @@ class baseTrainer:
         self.loss_history = []
 
         # 学習
-        with trange(self.epoch_nums) as self.pbar:
+        with trange(self.epoch_nums, desc="Epoch") as self.pbar:
             
             # 損失を計算
             self.calc_current_loss(0, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
