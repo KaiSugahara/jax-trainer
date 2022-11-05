@@ -5,7 +5,7 @@ from flax.training import train_state
 import optax
 
 from functools import partial
-from tqdm.notebook import trange
+from tqdm import trange
 
 class baseTrainer:
 
@@ -30,7 +30,7 @@ class baseTrainer:
 
         # tqdmの表示を更新
         if self.pbar:
-            self.pbar.set_description(f"[Epoch {str(i).zfill(len(str(self.epoch_nums)))}/{self.epoch_nums}]")
+            self.pbar.set_description(f"[Epoch {str(i).zfill(self.epoch_nums_digits)}/{self.epoch_nums}]")
             self.pbar.set_postfix({"TRAIN_LOSS": train_loss, "TEST_LOSS": test_loss})
 
 
@@ -81,7 +81,7 @@ class baseTrainer:
         key, subkey = jax.random.split(key)
         train_indices = jax.random.permutation(subkey, X_TRAIN.shape[0])
 
-        for batch_idx in trange(self.batch_nums, leave=False):
+        for batch_idx in range(self.batch_nums):
 
             # ミニバッチを抽出
             target_indices = jax.lax.dynamic_slice_in_dim(train_indices, (batch_idx*self.batch_size), self.batch_size)
@@ -107,6 +107,9 @@ class baseTrainer:
 
         # バッチ数（余りは切り捨て）
         self.batch_nums = X_TRAIN.shape[0] // self.batch_size
+
+        # 桁をカウント
+        self.epoch_nums_digits = len(str(self.epoch_nums))
 
         # PRNG keyを生成
         key = jax.random.PRNGKey(self.seed)
