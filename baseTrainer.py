@@ -24,13 +24,13 @@ class baseTrainer:
         # 保存
         self.loss_history.append({
             "epoch": i,
-            "train": train_loss,
-            "test": test_loss,
+            "LOSS（TRAIN）": train_loss,
+            "LOSS（TEST）": test_loss,
         })
 
         # tqdmの表示を更新
         if self.pbar:
-            self.pbar.set_postfix({"TRAIN_LOSS": train_loss, "TEST_LOSS": test_loss})
+            self.pbar.set_postfix({"LOSS（TRAIN）": train_loss, "LOSS（TEST）": test_loss})
 
 
     def plot_loss_history(self, hide_init_loss=False):
