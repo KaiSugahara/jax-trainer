@@ -5,7 +5,7 @@ from flax.training import train_state
 import optax
 
 from functools import partial
-from tqdm import trange
+from tqdm.notebook import trange
 
 class baseTrainer:
 
@@ -81,7 +81,7 @@ class baseTrainer:
         key, subkey = jax.random.split(key)
         train_indices = jax.random.permutation(subkey, X_TRAIN.shape[0])
 
-        for batch_idx in range(self.batch_nums):
+        for batch_idx in trange(self.batch_nums, leave=False):
 
             # ミニバッチを抽出
             target_indices = jax.lax.dynamic_slice_in_dim(train_indices, (batch_idx*self.batch_size), self.batch_size)
