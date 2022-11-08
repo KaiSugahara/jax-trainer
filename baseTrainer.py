@@ -92,7 +92,7 @@ class baseTrainer:
         return key, state
     
 
-    def fit(self, X_TRAIN, Y_TRAIN, X_TEST=None, Y_TEST=None, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0):
+    def fit(self, X_TRAIN, Y_TRAIN, X_TEST=None, Y_TEST=None, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, **hyper_params):
 
         """
             モデルの学習
@@ -103,6 +103,7 @@ class baseTrainer:
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.seed = seed
+        self.hyper_params = hyper_params
 
         # バッチ数（余りは切り捨て）
         self.batch_nums = X_TRAIN.shape[0] // self.batch_size
