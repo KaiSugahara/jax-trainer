@@ -4,7 +4,7 @@ import jax.numpy as jnp
 from flax.training import train_state
 import optax
 
-from dataLoader import dataLoader
+from .dataLoader import dataLoader
 
 from functools import partial
 from tqdm import trange
