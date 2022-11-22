@@ -4,6 +4,8 @@ import jax.numpy as jnp
 from flax.training import train_state
 import optax
 
+from dataLoader import dataLoader
+
 from functools import partial
 from tqdm import trange
 
@@ -76,20 +78,14 @@ class baseTrainer:
             エポック単位の学習
         """
 
-        # 入力データのインデックスをシャッフル
-        key, subkey = jax.random.split(key)
-        train_indices = jax.random.permutation(subkey, X_TRAIN.shape[0])
+        # データローダ（ミニバッチ）
+        loader = dataLoader(key, X_TRAIN, Y_TRAIN, batch_size=self.batch_size)
 
-        for batch_idx in range(self.batch_nums):
-
-            # ミニバッチを抽出
-            target_indices = jax.lax.dynamic_slice_in_dim(train_indices, (batch_idx*self.batch_size), self.batch_size)
-            X, Y = X_TRAIN[target_indices], Y_TRAIN[target_indices]
-
-            # ミニバッチで更新
+        # ミニバッチ学習
+        for X, Y in loader:
             state = self.train_batch(state, X, Y)
 
-        return key, state
+        return state
     
 
     def fit(self, X_TRAIN, Y_TRAIN, X_TEST=None, Y_TEST=None, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, **hyper_params):
@@ -105,14 +101,11 @@ class baseTrainer:
         self.seed = seed
         self.hyper_params = hyper_params
 
-        # バッチ数（余りは切り捨て）
-        self.batch_nums = X_TRAIN.shape[0] // self.batch_size
-
         # PRNG keyを生成
-        key = jax.random.PRNGKey(self.seed)
+        subkey = jax.random.PRNGKey(self.seed)
 
         # モデルパラメータの初期化
-        key, subkey = jax.random.split(key)
+        key, subkey = jax.random.split(subkey)
         params = self.model.init(subkey, X_TRAIN[:1, :])["params"]
 
         # Optimizer
@@ -132,7 +125,8 @@ class baseTrainer:
 
             for epoch_idx in self.pbar:
                 # モデルパラメータの更新
-                key, state = self.train_epoch(key, state, X_TRAIN, Y_TRAIN)
+                key, subkey = jax.random.split(subkey)
+                state = self.train_epoch(key, state, X_TRAIN, Y_TRAIN)
                 # 損失を計算
                 self.calc_current_loss(epoch_idx+1, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
 
