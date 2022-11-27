@@ -35,7 +35,7 @@ class baseTrainer:
             self.pbar.set_postfix({"LOSS（TRAIN）": train_loss, "LOSS（TEST）": test_loss})
 
 
-    def plot_loss_history(self, hide_init_loss=False):
+    def plot_loss_history(self):
 
         """
             損失履歴をプロット
@@ -48,7 +48,6 @@ class baseTrainer:
         loss_history = pd.DataFrame(self.loss_history)
         loss_history = loss_history.set_index("epoch")
         loss_history = loss_history.loc[:, ~loss_history.isnull().any()]
-        loss_history = loss_history.iloc[1:] if hide_init_loss else loss_history
 
         # Plotly
         fig = px.line(loss_history)
@@ -119,9 +118,6 @@ class baseTrainer:
 
         # 学習
         with trange(self.epoch_nums, desc="Epoch") as self.pbar:
-            
-            # 損失を計算
-            self.calc_current_loss(0, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
 
             for epoch_idx in self.pbar:
                 # モデルパラメータの更新
