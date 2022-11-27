@@ -4,8 +4,6 @@ import jax.numpy as jnp
 from flax.training import train_state
 import optax
 
-from .dataLoader import dataLoader
-
 from functools import partial
 from tqdm import trange
 
@@ -78,7 +76,7 @@ class baseTrainer:
         """
 
         # データローダ（ミニバッチ）
-        loader = dataLoader(key, X_TRAIN, Y_TRAIN, batch_size=self.batch_size)
+        loader = self.dataLoader(key, X_TRAIN, Y_TRAIN, batch_size=self.batch_size)
 
         # ミニバッチ学習
         for X, Y in loader:
@@ -105,7 +103,9 @@ class baseTrainer:
 
         # モデルパラメータの初期化
         key, subkey = jax.random.split(key)
-        params = self.model.init(subkey, X_TRAIN[:1, :])["params"]
+        X, Y = next(iter(self.dataLoader(subkey, X_TRAIN, Y_TRAIN, batch_size=self.batch_size))) # データローダから1バッチ取り出す
+        key, subkey = jax.random.split(key)
+        params = self.model.init(subkey, X)["params"]
 
         # Optimizer
         tx = optax.adam(self.learning_rate)
@@ -129,10 +129,11 @@ class baseTrainer:
         return state
     
 
-    def __init__(self, model):
+    def __init__(self, model, dataLoader):
 
         """
             初期化
         """
         
         self.model = model
+        self.dataLoader = dataLoader
