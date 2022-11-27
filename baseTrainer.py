@@ -14,18 +14,21 @@ class baseTrainer:
     def save_all_loss(self, epoch_idx, params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST):
 
         """
-            現在の損失を計算・保存
+            データ全体の損失を保存
         """
 
+        # keyを設定（シャッフルしないので何でも良い）
+        key = jax.random.PRNGKey(0)
+
         # 訓練誤差
-        X, Y = next(iter(self.dataLoader(None, X_TRAIN, Y_TRAIN, batch_size=X_TRAIN.shape[0])))
+        X, Y = next(iter(self.dataLoader(key, X_TRAIN, Y_TRAIN, batch_size=X_TRAIN.shape[0])))
         train_loss = self.loss_function(params, X, Y)
 
         # 汎化誤差
         if (X_TEST is None) or (Y_TEST is None):
             test_loss = None
         else:
-            X, Y = next(iter(self.dataLoader(None, X_TEST, Y_TEST, batch_size=X_TEST.shape[0])))
+            X, Y = next(iter(self.dataLoader(key, X_TEST, Y_TEST, batch_size=X_TEST.shape[0])))
             test_loss = self.loss_function(params, X, Y)
 
         # 保存
@@ -107,7 +110,7 @@ class baseTrainer:
 
         # モデルパラメータの初期化
         key, subkey = jax.random.split(key)
-        X, Y = next(iter(self.dataLoader(subkey, X_TRAIN, Y_TRAIN, batch_size=self.batch_size))) # データローダからミニバッチを1つ取り出す
+        X, Y = next(iter(self.dataLoader(subkey, X_TRAIN, Y_TRAIN, batch_size=1))) # データローダからミニバッチを1つ取り出す
         key, subkey = jax.random.split(key)
         params = self.model.init(subkey, X)["params"]
 
