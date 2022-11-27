@@ -101,10 +101,10 @@ class baseTrainer:
         self.hyper_params = hyper_params
 
         # PRNG keyを生成
-        subkey = jax.random.PRNGKey(self.seed)
+        key = jax.random.PRNGKey(self.seed)
 
         # モデルパラメータの初期化
-        key, subkey = jax.random.split(subkey)
+        key, subkey = jax.random.split(key)
         params = self.model.init(subkey, X_TRAIN[:1, :])["params"]
 
         # Optimizer
@@ -121,8 +121,8 @@ class baseTrainer:
 
             for epoch_idx in self.pbar:
                 # モデルパラメータの更新
-                key, subkey = jax.random.split(subkey)
-                state = self.train_epoch(key, state, X_TRAIN, Y_TRAIN)
+                key, subkey = jax.random.split(key)
+                state = self.train_epoch(subkey, state, X_TRAIN, Y_TRAIN)
                 # 損失を計算
                 self.calc_current_loss(epoch_idx+1, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
 
