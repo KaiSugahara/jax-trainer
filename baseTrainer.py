@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 class baseTrainer:
 
-    def calc_all_loss(self, epoch_idx, params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST):
+    def save_all_loss(self, epoch_idx, params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST):
 
         """
             現在の損失を計算・保存
@@ -90,25 +90,17 @@ class baseTrainer:
                 pbar.set_postfix({"TRAIN_LOSS（TMP）": loss})
 
         # 平均損失を保存
-        if self.loss_type == "average":
+        if self.save_loss_type == "average":
             self.loss_history[epoch_idx+1] = {"TRAIN_AVE_LOSS": np.mean(loss_list)}
 
         return state
     
 
-    def fit(self, X_TRAIN, Y_TRAIN, X_TEST=None, Y_TEST=None, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, loss_type="all", **hyper_params):
+    def fit(self, X_TRAIN, Y_TRAIN, X_TEST=None, Y_TEST=None):
 
         """
             モデルの学習
         """
-
-        # ハイパーパラメータの初期化
-        self.epoch_nums = epoch_nums
-        self.batch_size = batch_size
-        self.learning_rate = learning_rate
-        self.seed = seed
-        self.loss_type = loss_type
-        self.hyper_params = hyper_params
 
         # PRNG keyを生成
         key = jax.random.PRNGKey(self.seed)
@@ -136,17 +128,28 @@ class baseTrainer:
             state = self.train_epoch(epoch_idx, subkey, state, X_TRAIN, Y_TRAIN)
 
             # エポック単位で損失を保存
-            if self.loss_type == "all":
-                self.calc_all_loss(epoch_idx, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
+            if self.save_loss_type == "all":
+                self.save_all_loss(epoch_idx, state.params, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
 
         return state
     
 
-    def __init__(self, model, dataLoader):
+    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, save_loss_type="all", **hyper_params):
 
         """
             初期化
         """
         
+        # Flaxモデルの格納
         self.model = model
+
+        # データローダの格納
         self.dataLoader = dataLoader
+
+        # パラメータの格納
+        self.epoch_nums = epoch_nums
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
+        self.seed = seed
+        self.save_loss_type = save_loss_type
+        self.hyper_params = hyper_params
