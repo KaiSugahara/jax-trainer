@@ -99,7 +99,7 @@ class baseTrainer:
         return state
     
 
-    def fit(self, X_TRAIN, Y_TRAIN, X_TEST=None, Y_TEST=None):
+    def fit(self, X_TRAIN, Y_TRAIN, X_TEST=None, Y_TEST=None, params=None):
 
         """
             モデルの学習
@@ -108,11 +108,12 @@ class baseTrainer:
         # PRNG keyを生成
         key = jax.random.PRNGKey(self.seed)
 
-        # モデルパラメータの初期化
-        key, subkey = jax.random.split(key)
-        X, Y = next(iter(self.dataLoader(subkey, X_TRAIN, Y_TRAIN, batch_size=1))) # データローダからミニバッチを1つ取り出す
-        key, subkey = jax.random.split(key)
-        params = self.model.init(subkey, X)["params"]
+        # 事前学習なし → モデルパラメータの初期化
+        if params is None:
+            key, subkey = jax.random.split(key)
+            X, Y = next(iter(self.dataLoader(subkey, X_TRAIN, Y_TRAIN, batch_size=1))) # データローダからミニバッチを1つ取り出す
+            key, subkey = jax.random.split(key)
+            params = self.model.init(subkey, X)["params"]
 
         # Optimizer
         tx = optax.adam(self.learning_rate)
