@@ -32,10 +32,18 @@ class baseTrainer:
 
         return fig
 
-    def calc_test_loss(self, epoch_idx, key, state, X_TEST, Y_TEST):
+    def calc_test_loss(self, epoch_idx, key, state, variables, X_TEST, Y_TEST):
 
         """
-            汎化誤差を計算
+            func: 汎化誤差を計算
+            args:
+                - epoch_idx: エポック番号
+                - key: PRNGkey
+                - state: パラメータ状態
+                - variables: 状態変数（carryなど）
+                - X_TRAIN: テスト入力データ
+                - Y_TRAIN: テスト正解データ
+            returns: なし
         """
 
         # データローダ（ミニバッチ）
@@ -47,32 +55,51 @@ class baseTrainer:
         # ミニバッチ学習
         with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]") as pbar:
             for X, Y in pbar:
-                _, loss = self.train_batch(state, X, Y) # stateを更新させない！
+                _, loss, variables = self.train_batch(state, variables, X, Y) # stateは更新させない！
                 loss_list.append(loss)
                 pbar.set_postfix({"TEST_LOSS（TMP）": loss})
 
         self.loss_history[epoch_idx+1]["TEST_LOSS（BATCH_WISE_AVERAGE）"] = np.mean(loss_list)
 
     @partial(jax.jit, static_argnums=0)
-    def train_batch(self, state, X, Y):
+    def train_batch(self, state, variables, X, Y):
 
         """
-            バッチ単位の学習
+            func: バッチ単位の学習
+            args:
+                - state: パラメータ状態
+                - variables: 状態変数（carryなど）
+                - X: 入力データ
+                - Y: 正解データ
+            returns:
+                - state: パラメータ状態
+                - loss: 損失
+                - variables: 状態変数
         """
 
         # 勾配を計算
-        loss, grads = jax.value_and_grad(self.loss_function)(state.params, X, Y)
+        (loss, variables), grads = jax.value_and_grad(self.loss_function, has_aux=True)(state.params, variables, X, Y)
 
         # 更新
         state = state.apply_gradients(grads=grads)
-        return state, loss
+        return state, loss, variables
     
     
     # @partial(jax.jit, static_argnums=0)
-    def train_epoch(self, epoch_idx, key, state, X_TRAIN, Y_TRAIN):
+    def train_epoch(self, epoch_idx, key, state, variables, X_TRAIN, Y_TRAIN):
 
         """
-            エポック単位の学習
+            func: エポック単位の学習
+            args:
+                - epoch_idx: エポック番号
+                - key: PRNGkey
+                - state: パラメータ状態
+                - variables: 状態変数（carryなど）
+                - X_TRAIN: 訓練入力データ
+                - Y_TRAIN: 訓練正解データ
+            returns:
+                - state: パラメータ状態
+                - variables: 状態変数
         """
 
         # データローダ（ミニバッチ）
@@ -84,31 +111,40 @@ class baseTrainer:
         # ミニバッチ学習
         with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]") as pbar:
             for X, Y in pbar:
-                state, loss = self.train_batch(state, X, Y)
+                state, loss, variables = self.train_batch(state, variables, X, Y)
                 loss_list.append(loss)
                 pbar.set_postfix({"TRAIN_LOSS（TMP）": loss})
 
         # 平均訓練損失を保存
         self.loss_history[epoch_idx+1] = {"TRAIN_LOSS（BATCH_WISE_AVERAGE）": np.mean(loss_list)}
 
-        return state
+        return state, variables
     
 
     def fit(self, X_TRAIN, Y_TRAIN, X_TEST=None, Y_TEST=None, params=None):
 
         """
-            モデルの学習
+            func:モデルの学習
+            args:
+                - X_TRAIN: 訓練入力データ
+                - Y_TRAIN: 訓練正解データ
+                - X_TEST: テスト入力データ（任意; 汎化誤差を確認したいとき）
+                - Y_TEST: テスト正解データ（任意; 汎化誤差を確認したいとき）
+                - params: モデルパラメータの初期値（任意; 事前学習を行いたいとき）
+            returns:
+                - params: モデルパラメータ（学習済）
+                - variables: 状態変数（最後）
         """
 
         # PRNG keyを生成
         key = jax.random.PRNGKey(self.seed)
 
-        # 事前学習なし → モデルパラメータの初期化
+        # 事前学習なし → パラメータの初期化
         if params is None:
             key, subkey = jax.random.split(key)
-            X, Y = next(iter(self.dataLoader(subkey, X_TRAIN, Y_TRAIN, batch_size=1))) # データローダからミニバッチを1つ取り出す
+            X, Y = next(iter(self.dataLoader(subkey, X_TRAIN, Y_TRAIN, batch_size=self.batch_size))) # データローダからミニバッチを1つ取り出す
             key, subkey = jax.random.split(key)
-            params = self.model.init(subkey, X)["params"]
+            variables, params = self.model.init(subkey, X).pop("params")
 
         # Optimizer
         tx = optax.adam(self.learning_rate)
@@ -122,14 +158,14 @@ class baseTrainer:
         # 学習
         for epoch_idx in range(self.epoch_nums):
 
-            # モデルパラメータの更新
+            # パラメータと状態変数の更新
             key, subkey = jax.random.split(key)
-            state = self.train_epoch(epoch_idx, subkey, state, X_TRAIN, Y_TRAIN)
+            state, variables = self.train_epoch(epoch_idx, subkey, state, variables, X_TRAIN, Y_TRAIN)
 
             # 平均汎化損失を計算
-            self.calc_test_loss(epoch_idx, subkey, state, X_TEST, Y_TEST)
+            self.calc_test_loss(epoch_idx, subkey, state, variables, X_TEST, Y_TEST)
 
-        return state
+        return state.params, variables
 
     def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, **hyper_params):
 
