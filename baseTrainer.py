@@ -41,8 +41,8 @@ class baseTrainer:
                 - key: PRNGkey
                 - state: パラメータ状態
                 - variables: 状態変数（carryなど）
-                - X_TRAIN: テスト入力データ
-                - Y_TRAIN: テスト正解データ
+                - X_TEST: テスト入力データ
+                - Y_TEST: テスト正解データ
             returns: なし
         """
 
