@@ -32,6 +32,26 @@ class baseTrainer:
 
         return fig
 
+    def calc_test_loss(self, epoch_idx, key, state, X_TEST, Y_TEST):
+
+        """
+            汎化誤差を計算
+        """
+
+        # データローダ（ミニバッチ）
+        loader = self.dataLoader(key, X_TEST, Y_TEST, batch_size=self.batch_size)
+
+        # 損失格納用
+        loss_list = []
+
+        # ミニバッチ学習
+        with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]") as pbar:
+            for X, Y in pbar:
+                _, loss = self.train_batch(state, X, Y) # stateを更新させない！
+                loss_list.append(loss)
+                pbar.set_postfix({"TEST_LOSS（TMP）": loss})
+
+        self.loss_history[epoch_idx+1]["TEST_LOSS（BATCH_WISE_AVERAGE）"] = np.mean(loss_list)
 
     @partial(jax.jit, static_argnums=0)
     def train_batch(self, state, X, Y):
@@ -68,8 +88,8 @@ class baseTrainer:
                 loss_list.append(loss)
                 pbar.set_postfix({"TRAIN_LOSS（TMP）": loss})
 
-        # 平均損失（訓練）を保存
-        self.loss_history[epoch_idx+1] = {"TRAIN_AVE_LOSS": np.mean(loss_list)}
+        # 平均訓練損失を保存
+        self.loss_history[epoch_idx+1] = {"TRAIN_LOSS（BATCH_WISE_AVERAGE）": np.mean(loss_list)}
 
         return state
     
@@ -106,8 +126,10 @@ class baseTrainer:
             key, subkey = jax.random.split(key)
             state = self.train_epoch(epoch_idx, subkey, state, X_TRAIN, Y_TRAIN)
 
+            # 平均汎化損失を計算
+            self.calc_test_loss(epoch_idx, subkey, state, X_TEST, Y_TEST)
+
         return state
-    
 
     def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, **hyper_params):
 
