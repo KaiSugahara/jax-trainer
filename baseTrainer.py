@@ -121,7 +121,7 @@ class baseTrainer:
         return state, variables
     
 
-    def fit(self, X_TRAIN, Y_TRAIN, X_TEST=None, Y_TEST=None, params=None):
+    def fit(self, X_TRAIN, Y_TRAIN, X_TEST=None, Y_TEST=None, init_params=None, init_variables=None):
 
         """
             func:モデルの学習
@@ -130,7 +130,8 @@ class baseTrainer:
                 - Y_TRAIN: 訓練正解データ
                 - X_TEST: テスト入力データ（任意; 汎化誤差を確認したいとき）
                 - Y_TEST: テスト正解データ（任意; 汎化誤差を確認したいとき）
-                - params: モデルパラメータの初期値（任意; 事前学習を行いたいとき）
+                - init_params: モデルパラメータの初期値（任意; 事前学習済みの場合）
+                - init_variables: 状態変数の初期値（任意; 事前学習済みの場合）
             returns:
                 - params: モデルパラメータ（学習済）
                 - variables: 状態変数（最後）
@@ -140,11 +141,13 @@ class baseTrainer:
         key = jax.random.PRNGKey(self.seed)
 
         # 事前学習なし → パラメータの初期化
-        if params is None:
+        if (init_params is None) or (init_variables is None):
             key, subkey = jax.random.split(key)
             X, Y = next(iter(self.dataLoader(subkey, X_TRAIN, Y_TRAIN, batch_size=self.batch_size))) # データローダからミニバッチを1つ取り出す
             key, subkey = jax.random.split(key)
             variables, params = self.model.init(subkey, X).pop("params")
+        params = params if (init_params is None) else init_params
+        variables = variables if (init_variables is None) else init_variables
 
         # Optimizer
         tx = optax.adam(self.learning_rate)
