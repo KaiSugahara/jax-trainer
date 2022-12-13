@@ -163,7 +163,8 @@ class baseTrainer:
             state, variables = self.train_epoch(epoch_idx, subkey, state, variables, X_TRAIN, Y_TRAIN)
 
             # 平均汎化損失を計算
-            self.calc_test_loss(epoch_idx, subkey, state, variables, X_TEST, Y_TEST)
+            if (X_TEST is not None) and (Y_TEST is not None):
+                self.calc_test_loss(epoch_idx, subkey, state, variables, X_TEST, Y_TEST)
 
         return state.params, variables
 
