@@ -171,6 +171,10 @@ class baseTrainer:
         # 損失のリストを作成
         self.loss_history = {}
 
+        # 初期の各種損失を計算
+        key, subkey = jax.random.split(key)
+        self.calc_current_loss(-1, subkey, state, variables, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
+
         # 学習
         for epoch_idx in range(self.epoch_nums):
 
@@ -179,6 +183,7 @@ class baseTrainer:
             state, variables = self.train_epoch(epoch_idx, subkey, state, variables, X_TRAIN, Y_TRAIN)
 
             # 現エポックの各種損失を計算
+            key, subkey = jax.random.split(key)
             self.calc_current_loss(epoch_idx, subkey, state, variables, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
 
         return state.params, variables
