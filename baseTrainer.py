@@ -7,7 +7,7 @@ from flax.training import train_state
 import optax
 
 from functools import partial
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 class baseTrainer:
 
@@ -49,32 +49,32 @@ class baseTrainer:
         """
 
         self.loss_history[epoch_idx+1] = {}
-        print_objects = [f"[Epoch {epoch_idx+1}/{self.epoch_nums}]"]
+        print_objects = [f"\r[Epoch {epoch_idx+1}/{self.epoch_nums}]"]
 
-        # 訓練データの損失
-        loader = self.dataLoader(key, X_TRAIN, Y_TRAIN, batch_size=self.batch_size)
-        loss_list = []
-        with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]", leave=False) as pbar:
-            t_variables = variables
-            for X, Y in pbar:
-                loss, t_variables = self.loss_function(state.params, t_variables, X, Y)
-                loss_list.append(loss)
-        self.loss_history[epoch_idx+1]["TRAIN_LOSS"] = np.mean(loss_list)
+        # Evaluate Train Loss
+        loader = self.dataLoader(key, X_TRAIN, Y_TRAIN, batch_size=self.batch_size) # データローダの作成
+        loss_list = [] # 損失格納用
+        t_variables = variables # 状態変数の初期化
+        for i, (X, Y) in enumerate(loader): # ミニバッチ単位で損失を計算
+            print(f"\r[Epoch {epoch_idx+1}/{self.epoch_nums}]", "TRAIN", f"{i+1}/{loader.batch_num}", end="")
+            loss, t_variables = self.loss_function(state.params, t_variables, X, Y)
+            loss_list.append(loss) # 損失格納（バッチ単位）
+        self.loss_history[epoch_idx+1]["TRAIN_LOSS"] = np.mean(loss_list) # 損失の平均を保存
         print_objects += ["TRAIN_LOSS:", self.loss_history[epoch_idx+1]["TRAIN_LOSS"]]
 
-        # テストデータの損失
+        # Evaluate Test Loss
         if (X_TEST is not None) and (Y_TEST is not None):
-            loader = self.dataLoader(key, X_TEST, Y_TEST, batch_size=self.batch_size)
-            loss_list = []
-            with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]", leave=False) as pbar:
-                t_variables = variables
-                for X, Y in pbar:
-                    loss, t_variables = self.loss_function(state.params, t_variables, X, Y)
-                    loss_list.append(loss)
-            self.loss_history[epoch_idx+1]["TEST_LOSS"] = np.mean(loss_list)
+            loader = self.dataLoader(key, X_TEST, Y_TEST, batch_size=self.batch_size) # データローダの作成
+            loss_list = [] # 損失格納用
+            t_variables = variables # 状態変数の初期化
+            for i, (X, Y) in enumerate(loader): # ミニバッチ単位で損失を計算
+                print(f"\r[Epoch {epoch_idx+1}/{self.epoch_nums}]", "TEST", f"{i+1}/{loader.batch_num}", end="")
+                loss, t_variables = self.loss_function(state.params, t_variables, X, Y)
+                loss_list.append(loss) # 損失格納（バッチ単位）
+            self.loss_history[epoch_idx+1]["TEST_LOSS"] = np.mean(loss_list) # 損失の平均を保存
             print_objects += ["TEST_LOSS:", self.loss_history[epoch_idx+1]["TEST_LOSS"]]
 
-        # PRINT
+        # Print
         print(*print_objects)
 
 
@@ -126,7 +126,7 @@ class baseTrainer:
         # loss_list = []
 
         # ミニバッチ学習
-        with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]", leave=False) as pbar:
+        with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]") as pbar:
             for X, Y in pbar:
                 state, loss, variables = self.train_batch(state, variables, X, Y)
                 # loss_list.append(loss)
