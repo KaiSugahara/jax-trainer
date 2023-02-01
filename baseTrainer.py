@@ -122,18 +122,11 @@ class baseTrainer:
         # データローダ（ミニバッチ）
         loader = self.dataLoader(key, X_TRAIN, Y_TRAIN, batch_size=self.batch_size)
 
-        # # 損失格納用
-        # loss_list = []
-
         # ミニバッチ学習
         with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]") as pbar:
             for X, Y in pbar:
                 state, loss, variables = self.train_batch(state, variables, X, Y)
-                # loss_list.append(loss)
                 pbar.set_postfix({"TRAIN_LOSS（TMP）": loss})
-
-        # # 平均訓練損失を保存
-        # self.loss_history[epoch_idx+1] = {"TRAIN_LOSS（BATCH_WISE_AVERAGE）": np.mean(loss_list)}
 
         return state, variables
     
