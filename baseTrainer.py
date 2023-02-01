@@ -75,7 +75,8 @@ class baseTrainer:
             print_objects += ["TEST_LOSS:", self.loss_history[epoch_idx+1]["TEST_LOSS"]]
 
         # Print
-        print(*print_objects)
+        if self.verbose > 0:
+            print(*print_objects)
 
 
     @partial(jax.jit, static_argnums=0)
@@ -123,7 +124,7 @@ class baseTrainer:
         loader = self.dataLoader(key, X_TRAIN, Y_TRAIN, batch_size=self.batch_size)
 
         # ミニバッチ学習
-        with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]") as pbar:
+        with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]", disable=(self.verbose != 2)) as pbar:
             for X, Y in pbar:
                 state, loss, variables = self.train_batch(state, variables, X, Y)
                 pbar.set_postfix({"TRAIN_LOSS（TMP）": loss})
@@ -185,7 +186,7 @@ class baseTrainer:
 
         return state.params, variables
 
-    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, **hyper_params):
+    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, **hyper_params):
 
         """
             初期化
@@ -203,3 +204,4 @@ class baseTrainer:
         self.learning_rate = learning_rate
         self.seed = seed
         self.hyper_params = hyper_params
+        self.verbose = verbose # 2: すべて表示, 1: エポック毎の表示, 0: すべて非表示
