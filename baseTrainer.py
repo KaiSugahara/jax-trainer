@@ -32,10 +32,10 @@ class baseTrainer:
 
         return fig
 
-    def calc_current_loss(self, epoch_idx, key, state, variables, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST):
+    def calc_current_metric(self, epoch_idx, key, state, variables, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST):
 
         """
-            func: 現エポックの各種損失を計算
+            func: 現エポックの評価指標を計算
             args:
                 - epoch_idx: エポック番号
                 - key: PRNGkey
@@ -45,13 +45,30 @@ class baseTrainer:
                 - Y_TRAIN: 訓練正解データ
                 - X_TEST: テスト入力データ
                 - Y_TEST: テスト正解データ
-            returns: なし
+        """
+
+        pass
+
+
+    def calc_current_loss(self, epoch_idx, key, state, variables, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST):
+
+        """
+            func: 現エポックのロスを計算
+            args:
+                - epoch_idx: エポック番号
+                - key: PRNGkey
+                - state: パラメータ状態
+                - variables: 状態変数（carryなど）
+                - X_TRAIN: 訓練入力データ
+                - Y_TRAIN: 訓練正解データ
+                - X_TEST: テスト入力データ
+                - Y_TEST: テスト正解データ
         """
 
         self.loss_history[epoch_idx+1] = {}
-        print_objects = [f"\r[Epoch {epoch_idx+1}/{self.epoch_nums}]"]
+        print_objects = []
 
-        # データ毎に損失平均を計算 & 保持
+        # データ毎にロス平均を計算 & 保持
         for LABEL, (X_DATA, Y_DATA) in [("TRAIN", (X_TRAIN, Y_TRAIN))] + ([("TEST", (X_TEST, Y_TEST))] if (X_TEST is not None) and (Y_TEST is not None) else []):
             
             loader = self.dataLoader(key, X_DATA, Y_DATA, batch_size=self.batch_size) # データローダの生成
@@ -61,11 +78,15 @@ class baseTrainer:
                 loss, t_variables = self.loss_function(state.params, t_variables, X, Y)
                 loss_list.append(loss) # 損失格納（バッチ単位）
             self.loss_history[epoch_idx+1][f"{LABEL}_LOSS"] = np.mean(loss_list) # 損失の平均を保存
-            print_objects += [f"{LABEL}_LOSS:", self.loss_history[epoch_idx+1][f"{LABEL}_LOSS"]]
+
+        # 他の（学習には関与しない）評価指標で計算
+        self.calc_current_metric(epoch_idx, key, state, variables, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
 
         # Print
         if self.verbose > 0:
-            print(*print_objects)
+            print(f"\r[Epoch {epoch_idx+1}/{self.epoch_nums}]", end=" ")
+            for key, val in self.loss_history[epoch_idx+1].items():
+                print(key, val, end=" ")
 
 
     @partial(jax.jit, static_argnums=0)
