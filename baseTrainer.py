@@ -14,7 +14,7 @@ class baseTrainer:
     def plot_loss_history(self):
 
         """
-            損失履歴をプロット
+            func: 損失履歴をプロット
         """
 
         import pandas as pd
@@ -32,65 +32,78 @@ class baseTrainer:
 
         return fig
 
-    def calc_current_metric(self, epoch_idx, key, state, variables, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST):
-
+    def __get_key(self, is_init=False):
+        
         """
-            func: 現エポックの評価指標を計算
-            args:
-                - epoch_idx: エポック番号
-                - key: PRNGkey
-                - state: パラメータ状態
-                - variables: 状態変数（carryなど）
-                - X_TRAIN: 訓練入力データ
-                - Y_TRAIN: 訓練正解データ
-                - X_TEST: テスト入力データ
-                - Y_TEST: テスト正解データ
+            func: PRNG keyを生成
         """
 
-        pass
+        # keyを初期化
+        if is_init:
+            self.key = jax.random.PRNGKey(self.seed)
+
+        # 次のkeyを生成
+        self.key, subkey = jax.random.split(self.key)
+
+        return subkey
 
 
-    def calc_current_loss(self, epoch_idx, key, state, variables, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST):
+    def score(self, x, y):
+
+        """
+            func: 入力されたx, yからロスを計算
+        """
+
+        # データローダの生成
+        loader = self.dataLoader(self.__get_key(), x, y, batch_size=self.batch_size)
+        # バッチごとのロス
+        batch_loss_list = []
+        # 状態変数の初期化
+        variables = self.variables
+        # ミニバッチ単位でロスを計算
+        for i, (X, Y) in enumerate(loader): 
+            loss, variables = self.loss_function(self.state.params, variables, X, Y)
+            batch_loss_list.append(loss)
+
+        # 平均値を返す
+        return np.mean(batch_loss_list)
+
+
+    def __calc_current_loss(self, epoch_idx, X_TRAIN, Y_TRAIN, X_VALID, Y_VALID):
 
         """
             func: 現エポックのロスを計算
             args:
                 - epoch_idx: エポック番号
-                - key: PRNGkey
-                - state: パラメータ状態
-                - variables: 状態変数（carryなど）
                 - X_TRAIN: 訓練入力データ
                 - Y_TRAIN: 訓練正解データ
-                - X_TEST: テスト入力データ
-                - Y_TEST: テスト正解データ
+                - X_VALID: 検証入力データ
+                - Y_VALID: 検証正解データ
         """
 
-        self.loss_history[epoch_idx+1] = {}
-        print_objects = []
+        if self.is_calc_loss_per_epoch:
 
-        # データ毎にロス平均を計算 & 保持
-        for LABEL, (X_DATA, Y_DATA) in [("TRAIN", (X_TRAIN, Y_TRAIN))] + ([("TEST", (X_TEST, Y_TEST))] if (X_TEST is not None) and (Y_TEST is not None) else []):
-            
-            loader = self.dataLoader(key, X_DATA, Y_DATA, batch_size=self.batch_size) # データローダの生成
-            loss_list = [] # 損失格納用
-            t_variables = variables # 状態変数の初期化
-            for i, (X, Y) in enumerate(loader): # ミニバッチ単位で損失を計算
-                loss, t_variables = self.loss_function(state.params, t_variables, X, Y)
-                loss_list.append(loss) # 損失格納（バッチ単位）
-            self.loss_history[epoch_idx+1][f"{LABEL}_LOSS"] = np.mean(loss_list) # 損失の平均を保存
+            self.loss_history[epoch_idx+1] = {}
+            print_objects = []
 
-        # 他の（学習には関与しない）評価指標で計算
-        self.calc_current_metric(epoch_idx, key, state, variables, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
+            # 訓練データのロスを計算
+            self.loss_history[epoch_idx+1][f"TRAIN_LOSS"] = self.score(X_TRAIN, Y_TRAIN)
 
-        # Print
-        if self.verbose > 0:
-            print(f"\r[Epoch {epoch_idx+1}/{self.epoch_nums}]", end=" ")
-            for key, val in self.loss_history[epoch_idx+1].items():
-                print(key, val, end=" ")
+            # 検証データのロスを計算
+            if (X_VALID is not None) and (Y_VALID is not None):
+                self.loss_history[epoch_idx+1][f"VALID_LOSS"] = self.score(X_VALID, Y_VALID)
+
+            # Print
+            if self.verbose > 0:
+                print(f"\r[Epoch {epoch_idx+1}/{self.epoch_nums}]", end=" ")
+                for key, val in self.loss_history[epoch_idx+1].items():
+                    print(key, val, end=" ")
+
+        return self
 
 
     @partial(jax.jit, static_argnums=0)
-    def train_batch(self, state, variables, X, Y):
+    def __train_batch(self, state, variables, X, Y):
 
         """
             func: バッチ単位の学習
@@ -103,6 +116,8 @@ class baseTrainer:
                 - state: パラメータ状態
                 - loss: 損失
                 - variables: 状態変数
+            note:
+                JITコンパイルしているため、stateとvariablesは引数として受け取る
         """
 
         # 勾配を計算
@@ -110,108 +125,124 @@ class baseTrainer:
 
         # 更新
         state = state.apply_gradients(grads=grads)
-        return state, loss, variables
-    
-    
-    # @partial(jax.jit, static_argnums=0)
-    def train_epoch(self, epoch_idx, key, state, variables, X_TRAIN, Y_TRAIN):
+        return state, variables, loss
+
+
+    def __train_epoch(self, epoch_idx, X_TRAIN, Y_TRAIN):
 
         """
             func: エポック単位の学習
             args:
                 - epoch_idx: エポック番号
-                - key: PRNGkey
-                - state: パラメータ状態
-                - variables: 状態変数（carryなど）
                 - X_TRAIN: 訓練入力データ
                 - Y_TRAIN: 訓練正解データ
-            returns:
-                - state: パラメータ状態
-                - variables: 状態変数
         """
 
         # データローダ（ミニバッチ）
-        loader = self.dataLoader(key, X_TRAIN, Y_TRAIN, batch_size=self.batch_size)
+        loader = self.dataLoader(self.__get_key(), X_TRAIN, Y_TRAIN, batch_size=self.batch_size)
 
         # ミニバッチ学習
         with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]", disable=(self.verbose != 2)) as pbar:
             for X, Y in pbar:
-                state, loss, variables = self.train_batch(state, variables, X, Y)
+                # モデルパラメータ更新
+                self.state, self.variables, loss = self.__train_batch(self.state, self.variables, X, Y)
+                # ミニバッチのロスを表示
                 pbar.set_postfix({"TRAIN_LOSS（TMP）": loss})
 
-        return state, variables
-    
+        return self
 
-    def fit(self, X_TRAIN, Y_TRAIN, X_TEST=None, Y_TEST=None, init_params=None, init_variables=None):
+    def fit(self, X_TRAIN, Y_TRAIN, X_VALID=None, Y_VALID=None, init_params=None, init_variables=None):
 
         """
             func:モデルの学習
             args:
                 - X_TRAIN: 訓練入力データ
                 - Y_TRAIN: 訓練正解データ
-                - X_TEST: テスト入力データ（任意; 汎化誤差を確認したいとき）
-                - Y_TEST: テスト正解データ（任意; 汎化誤差を確認したいとき）
+                - X_VALID: 検証入力データ（任意; 汎化誤差を確認したいとき）
+                - Y_VALID: 検証正解データ（任意; 汎化誤差を確認したいとき）
                 - init_params: モデルパラメータの初期値（任意; 事前学習済みの場合）
                 - init_variables: 状態変数の初期値（任意; 事前学習済みの場合）
-            returns:
-                - params: モデルパラメータ（学習済）
-                - variables: 状態変数（最後）
         """
 
-        # PRNG keyを生成
-        key = jax.random.PRNGKey(self.seed)
+        # PRNG keyを初期化
+        _ = self.__get_key(is_init=True)
 
-        # 事前学習なし → パラメータの初期化
+        # パラメータの初期化（＝事前学習なし）
         if (init_params is None) or (init_variables is None):
-            key, subkey = jax.random.split(key)
-            X, Y = next(iter(self.dataLoader(subkey, X_TRAIN, Y_TRAIN, batch_size=self.batch_size))) # データローダからミニバッチを1つ取り出す
-            key, subkey = jax.random.split(key)
-            variables, params = self.model.init(subkey, X).pop("params")
-        params = params if (init_params is None) else init_params
-        variables = variables if (init_variables is None) else init_variables
+            X, Y = next(iter(self.dataLoader(self.__get_key(), X_TRAIN, Y_TRAIN, batch_size=self.batch_size))) # データローダからミニバッチを1つだけ取り出す
+            self.variables, self.params = self.model.init(self.__get_key(), X).pop("params")
+        # パラメータのセット（＝事前学習あり）
+        else:
+            self.params = init_params
+            self.variables = init_variables
 
-        # Optimizer
+        # 定義：Optimizer
         tx = optax.adam(self.learning_rate)
 
-        # モデルパラメータの状態
-        state = train_state.TrainState.create(apply_fn=self.model.apply, params=params, tx=tx)
+        # 定義：モデルパラメータの状態
+        self.state = train_state.TrainState.create(apply_fn=self.model.apply, params=self.params, tx=tx)
 
-        # 損失のリストを作成
+        # 損失履歴リストを初期化
         self.loss_history = {}
 
-        # 初期の各種損失を計算
-        key, subkey = jax.random.split(key)
-        self.calc_current_loss(-1, subkey, state, variables, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
+        # 現在のロスを計算
+        self.__calc_current_loss(-1, X_TRAIN, Y_TRAIN, X_VALID, Y_VALID)
 
         # 学習
         for epoch_idx in range(self.epoch_nums):
 
-            # パラメータと状態変数の更新
-            key, subkey = jax.random.split(key)
-            state, variables = self.train_epoch(epoch_idx, subkey, state, variables, X_TRAIN, Y_TRAIN)
+            # モデルパラメータと状態変数の更新
+            self.__train_epoch(epoch_idx, X_TRAIN, Y_TRAIN)
 
-            # 現エポックの各種損失を計算
-            key, subkey = jax.random.split(key)
-            self.calc_current_loss(epoch_idx, subkey, state, variables, X_TRAIN, Y_TRAIN, X_TEST, Y_TEST)
+            # 現在のロスを計算
+            self.__calc_current_loss(epoch_idx, X_TRAIN, Y_TRAIN, X_VALID, Y_VALID)
 
-        return state.params, variables
+        return self
 
-    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, **hyper_params):
+    def get_params(self, deep=True):
 
         """
-            初期化
+            func: ハイパーパラメータとモデルパラメータを辞書型で返す
         """
+
+        outputs = {}
         
-        # Flaxモデルの格納
-        self.model = model
+        # ハイパーパラメータを取得
+        attribute_list = ["epoch_nums", "batch_size", "learning_rate", "seed", "verbose", "hyper_params"]
+        outputs.update( {name: getattr(self, name, None) for name in attribute_list} )
 
-        # データローダの格納
-        self.dataLoader = dataLoader
+        # モデルパラメータを取得
+        outputs["params"] = state.params if (state := getattr(self, "state", False)) else None
+        outputs["variables"] = getattr(self, "variables", None)
 
-        # パラメータの格納
-        self.epoch_nums = epoch_nums
-        self.batch_size = batch_size
-        self.learning_rate = learning_rate
-        self.seed = seed
-        self.hyper_params = hyper_params
-        self.verbose = verbose # 2: すべて表示, 1: エポック毎の表示, 0: すべて非表示
+        return outputs
+
+    def set_params(self, **parameters):
+
+        """
+            func: 与えられたハイパーパラメータの値をセット
+        """
+
+        for parameter, value in parameters.items():
+            setattr(self, parameter, value)
+        return self
+
+    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, is_calc_loss_per_epoch=True, **hyper_params):
+
+        """
+            args:
+                model: Flaxベースのモデル
+                dataLoader: データローダ
+                epoch_nums: エポック数
+                batch_size: ミニバッチのサイズ
+                learning_rate: 学習率
+                seed: ランダムシード
+                verbose: 学習プロセスの進捗表示（2: すべて表示, 1: エポック毎の表示, 0: すべて非表示）
+                is_calc_loss_per_epoch: エポック毎にロスを計算し直すかどうか
+                hyper_params: その他のモデル特有のハイパーパラメータ, 可変長引数
+        """
+
+        # ハイパーパラメータをセット
+        local_params = locals() # ローカル変数を取得
+        del local_params["self"] # インスタンス自身は除外
+        self.set_params(**local_params)
