@@ -170,17 +170,17 @@ class baseTrainer:
         # パラメータの初期化（＝事前学習なし）
         if (init_params is None) or (init_variables is None):
             X, Y = next(iter(self.dataLoader(self.__get_key(), X_TRAIN, Y_TRAIN, batch_size=self.batch_size))) # データローダからミニバッチを1つだけ取り出す
-            self.variables, self.params = self.model.init(self.__get_key(), X).pop("params")
+            self.variables, params = self.model.init(self.__get_key(), X).pop("params")
         # パラメータのセット（＝事前学習あり）
         else:
-            self.params = init_params
+            params = init_params
             self.variables = init_variables
 
         # 定義：Optimizer
         tx = optax.adam(self.learning_rate)
 
         # 定義：モデルパラメータの状態
-        self.state = train_state.TrainState.create(apply_fn=self.model.apply, params=self.params, tx=tx)
+        self.state = train_state.TrainState.create(apply_fn=self.model.apply, params=params, tx=tx)
 
         # 損失履歴リストを初期化
         self.loss_history = {}
