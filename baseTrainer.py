@@ -227,6 +227,14 @@ class baseTrainer:
             setattr(self, parameter, value)
         return self
 
+    def clear_cache(self):
+
+        self.__train_batch.clear_cache()
+        self.loss_function.clear_cache()
+
+        return self
+
+
     def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, is_calc_loss_per_epoch=True, **hyper_params):
 
         """
