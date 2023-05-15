@@ -20,4 +20,7 @@ class regressionTrainer(baseTrainer):
         # MSEを計算
         loss = jnp.mean((pred - Y)**2)
 
+        # 正則化項
+        loss += getattr(self, "reg_alpha", 0) * sum( jnp.sum(w**2) for w in jax.tree_util.tree_leaves(params) ) / sum( w.size for w in jax.tree_util.tree_leaves(params) )
+
         return loss, variables
