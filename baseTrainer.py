@@ -199,6 +199,13 @@ class baseTrainer:
 
         return self
 
+    def get_param(self, attr_name):
+
+        if attr_name == "params":
+            return state.params if (state := getattr(self, "state", False)) else None
+        else:
+            return getattr(self, name, None)
+
     def get_params(self, deep=True):
 
         """
@@ -235,7 +242,7 @@ class baseTrainer:
         return self
 
 
-    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, is_calc_loss_per_epoch=True, **hyper_params):
+    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, is_calc_loss_per_epoch=True, **other_params):
 
         """
             args:
@@ -247,10 +254,11 @@ class baseTrainer:
                 seed: ランダムシード
                 verbose: 学習プロセスの進捗表示（2: すべて表示, 1: エポック毎の表示, 0: すべて非表示）
                 is_calc_loss_per_epoch: エポック毎にロスを計算し直すかどうか
-                hyper_params: その他のモデル特有のハイパーパラメータ, 可変長引数
+                other_params: その他のモデル特有のハイパーパラメータ, 可変長引数
         """
 
         # ハイパーパラメータをセット
-        local_params = locals() # ローカル変数を取得
-        del local_params["self"] # インスタンス自身は除外
+        local_params = locals().copy() # ローカル変数を取得
+        del local_params["self"], local_params["other_params"] # インスタンス自身は除外
         self.set_params(**local_params)
+        self.set_params(**other_params)
