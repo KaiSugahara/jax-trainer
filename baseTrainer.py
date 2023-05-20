@@ -177,7 +177,7 @@ class baseTrainer:
             self.variables = init_variables
 
         # 定義：Optimizer
-        tx = optax.adam(self.learning_rate)
+        tx = optax.adamw(learning_rate=self.learning_rate, weight_decay=self.weight_decay)
 
         # 定義：モデルパラメータの状態
         self.state = train_state.TrainState.create(apply_fn=self.model.apply, params=params, tx=tx)
@@ -242,7 +242,7 @@ class baseTrainer:
         return self
 
 
-    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, is_calc_loss_per_epoch=True, **other_params):
+    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, weight_decay=0, is_calc_loss_per_epoch=True, **other_params):
 
         """
             args:
@@ -253,12 +253,12 @@ class baseTrainer:
                 learning_rate: 学習率
                 seed: ランダムシード
                 verbose: 学習プロセスの進捗表示（2: すべて表示, 1: エポック毎の表示, 0: すべて非表示）
+                weight_decay: weight_decay of Adam
                 is_calc_loss_per_epoch: エポック毎にロスを計算し直すかどうか
                 other_params: その他のモデル特有のハイパーパラメータ, 可変長引数
         """
 
         # ハイパーパラメータをセット
         local_params = locals().copy() # ローカル変数を取得
-        del local_params["self"], local_params["other_params"] # インスタンス自身は除外
+        del local_params["self"] # インスタンス自身は除外
         self.set_params(**local_params)
-        self.set_params(**other_params)
