@@ -1,4 +1,5 @@
 import numpy as np
+from collections import defaultdict
 
 import jax
 import jax.numpy as jnp
@@ -81,9 +82,8 @@ class baseTrainer:
                 - Y_VALID: 検証正解データ
         """
 
-        if self.is_calc_loss_per_epoch:
+        if self.calc_fullbatch_loss:
 
-            self.loss_history[epoch_idx+1] = {}
             print_objects = []
 
             # 訓練データのロスを計算
@@ -183,7 +183,7 @@ class baseTrainer:
         self.state = train_state.TrainState.create(apply_fn=self.model.apply, params=params, tx=tx)
 
         # 損失履歴リストを初期化
-        self.loss_history = {}
+        self.loss_history = defaultdict(dict)
 
         # 現在のロスを計算
         self.__calc_current_loss(-1, X_TRAIN, Y_TRAIN, X_VALID, Y_VALID)
@@ -242,7 +242,7 @@ class baseTrainer:
         return self
 
 
-    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, weight_decay=0, is_calc_loss_per_epoch=True, **other_params):
+    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, weight_decay=0, calc_fullbatch_loss=True, **other_params):
 
         """
             args:
@@ -254,7 +254,7 @@ class baseTrainer:
                 seed: ランダムシード
                 verbose: 学習プロセスの進捗表示（2: すべて表示, 1: エポック毎の表示, 0: すべて非表示）
                 weight_decay: weight_decay of Adam
-                is_calc_loss_per_epoch: エポック毎にロスを計算し直すかどうか
+                calc_fullbatch_loss: エポック毎にフルバッチの訓練損失を計算し直すか？
                 other_params: その他のモデル特有のハイパーパラメータ, 可変長引数
         """
 
