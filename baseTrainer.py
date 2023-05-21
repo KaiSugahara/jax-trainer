@@ -23,7 +23,6 @@ class baseTrainer:
 
         # DataFrameに変換する
         loss_history = pd.DataFrame(self.loss_history).T
-        loss_history = loss_history.loc[:, ~loss_history.isnull().any()]
         loss_history.index.name = "epoch"
         loss_history.columns.name = "LABEL"
 
@@ -82,22 +81,22 @@ class baseTrainer:
                 - Y_VALID: 検証正解データ
         """
 
+        print_objects = []
+
         if self.calc_fullbatch_loss:
 
-            print_objects = []
-
-            # 訓練データのロスを計算
+            # 訓練ロスを計算
             self.loss_history[epoch_idx+1][f"TRAIN_LOSS"] = self.score(X_TRAIN, Y_TRAIN)
 
-            # 検証データのロスを計算
-            if (X_VALID is not None) and (Y_VALID is not None):
-                self.loss_history[epoch_idx+1][f"VALID_LOSS"] = self.score(X_VALID, Y_VALID)
+        # 検証ロスを計算
+        if (X_VALID is not None) and (Y_VALID is not None):
+            self.loss_history[epoch_idx+1][f"VALID_LOSS"] = self.score(X_VALID, Y_VALID)
 
-            # Print
-            if self.verbose > 0:
-                print(f"\r[Epoch {epoch_idx+1}/{self.epoch_nums}]", end=" ")
-                for key, val in self.loss_history[epoch_idx+1].items():
-                    print(key, val, end=" ")
+        # Print
+        if self.verbose > 0:
+            print(f"\r[Epoch {epoch_idx+1}/{self.epoch_nums}]", end=" ")
+            for key, val in self.loss_history[epoch_idx+1].items():
+                print(key, val, end=" ")
 
         return self
 
@@ -143,11 +142,19 @@ class baseTrainer:
 
         # ミニバッチ学習
         with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]", disable=(self.verbose != 2)) as pbar:
+            
+            # 平均ミニバッチ損失を初期化
+            self.loss_history[epoch_idx+1][f"TRAIN_LOSS（M.B. AVE.）"] = []
+            # ミニバッチ学習
             for X, Y in pbar:
                 # モデルパラメータ更新
                 self.state, self.variables, loss = self.__train_batch(self.state, self.variables, X, Y)
                 # ミニバッチのロスを表示
                 pbar.set_postfix({"TRAIN_LOSS（TMP）": loss})
+                # ミニバッチ損失を加算
+                self.loss_history[epoch_idx+1][f"TRAIN_LOSS（M.B. AVE.）"].append(loss)
+            # 平均ミニバッチ損失を計算
+            self.loss_history[epoch_idx+1][f"TRAIN_LOSS（M.B. AVE.）"] = np.mean(self.loss_history[epoch_idx+1][f"TRAIN_LOSS（M.B. AVE.）"])
 
         return self
 
@@ -242,7 +249,7 @@ class baseTrainer:
         return self
 
 
-    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, weight_decay=0, calc_fullbatch_loss=True, **other_params):
+    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, weight_decay=0, calc_fullbatch_loss=False, **other_params):
 
         """
             args:
