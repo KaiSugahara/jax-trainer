@@ -1,5 +1,6 @@
 import numpy as np
 from collections import defaultdict
+import mlflow
 
 import jax
 import jax.numpy as jnp
@@ -86,14 +87,15 @@ class baseTrainer:
 
         print_objects = []
 
+        # 訓練ロスを計算 (calc_fullbatch_loss=Trueの場合)
         if self.calc_fullbatch_loss:
-
-            # 訓練ロスを計算
-            self.loss_history[epoch_idx+1][f"TRAIN_LOSS"] = self.score(X_TRAIN, Y_TRAIN)
+            self.loss_history[epoch_idx+1][f"TRAIN_LOSS"] = (loss := self.score(X_TRAIN, Y_TRAIN))
+            if self.run: mlflow.log_metric("TRAIN_LOSS", loss, step=epoch_idx+1)
 
         # 検証ロスを計算
         if (X_VALID is not None) and (Y_VALID is not None):
-            self.loss_history[epoch_idx+1][f"VALID_LOSS"] = self.score(X_VALID, Y_VALID)
+            self.loss_history[epoch_idx+1][f"VALID_LOSS"] = (loss := self.score(X_VALID, Y_VALID))
+            if self.run: mlflow.log_metric("VALID_LOSS", loss, step=epoch_idx+1)
 
         # Print
         if self.verbose > 0:
@@ -252,7 +254,7 @@ class baseTrainer:
         return self
 
 
-    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, weight_decay=0, calc_fullbatch_loss=False, **other_params):
+    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, weight_decay=0, calc_fullbatch_loss=False, run=None, **other_params):
 
         """
             args:
@@ -265,6 +267,7 @@ class baseTrainer:
                 verbose: 学習プロセスの進捗表示（2: すべて表示, 1: エポック毎の表示, 0: すべて非表示）
                 weight_decay: weight_decay of Adam
                 calc_fullbatch_loss: エポック毎にフルバッチの訓練損失を計算し直すか？
+                run: MLFlow Run
                 other_params: その他のモデル特有のハイパーパラメータ, 可変長引数
         """
 
