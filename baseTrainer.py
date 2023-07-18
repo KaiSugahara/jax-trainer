@@ -90,12 +90,12 @@ class baseTrainer:
         # 訓練ロスを計算 (calc_fullbatch_loss=Trueの場合)
         if self.calc_fullbatch_loss:
             self.loss_history[epoch_idx+1][f"TRAIN_LOSS"] = (loss := self.score(X_TRAIN, Y_TRAIN))
-            if self.run: mlflow.log_metric("TRAIN_LOSS", loss, step=epoch_idx+1)
+            if self.run: mlflow.log_metric("TRAIN_LOSS", loss, step=epoch_idx+1)    # MLFlowに保存
 
         # 検証ロスを計算
         if (X_VALID is not None) and (Y_VALID is not None):
             self.loss_history[epoch_idx+1][f"VALID_LOSS"] = (loss := self.score(X_VALID, Y_VALID))
-            if self.run: mlflow.log_metric("VALID_LOSS", loss, step=epoch_idx+1)
+            if self.run: mlflow.log_metric("VALID_LOSS", loss, step=epoch_idx+1)    # MLFlowに保存
 
         # Print
         if self.verbose > 0:
@@ -149,7 +149,7 @@ class baseTrainer:
         with tqdm(loader, total=loader.batch_num, desc=f"[Epoch {epoch_idx+1}/{self.epoch_nums}]", disable=(self.verbose != 2)) as pbar:
             
             # 平均ミニバッチ損失を初期化
-            self.loss_history[epoch_idx+1][f"TRAIN_LOSS（M.B. AVE.）"] = []
+            self.loss_history[epoch_idx+1][f"TRAIN_LOSS(M.B.AVE.)"] = []
             # ミニバッチ学習
             for X, Y in pbar:
                 # モデルパラメータ更新
@@ -157,9 +157,10 @@ class baseTrainer:
                 # ミニバッチのロスを表示
                 pbar.set_postfix({"TRAIN_LOSS（TMP）": loss})
                 # ミニバッチ損失を加算
-                self.loss_history[epoch_idx+1][f"TRAIN_LOSS（M.B. AVE.）"].append(loss)
+                self.loss_history[epoch_idx+1][f"TRAIN_LOSS(M.B.AVE.)"].append(loss)
             # 平均ミニバッチ損失を計算
-            self.loss_history[epoch_idx+1][f"TRAIN_LOSS（M.B. AVE.）"] = np.mean(self.loss_history[epoch_idx+1][f"TRAIN_LOSS（M.B. AVE.）"])
+            self.loss_history[epoch_idx+1][f"TRAIN_LOSS(M.B.AVE.)"] = (save_loss := np.mean(self.loss_history[epoch_idx+1][f"TRAIN_LOSS(M.B.AVE.)"]))
+            if self.run: mlflow.log_metric("TRAIN_LOSS/REF.", save_loss, step=epoch_idx+1)    # MLFlowに保存
 
         return self
 
