@@ -58,15 +58,18 @@ class baseTrainer:
         loader = self.dataLoader(self.__get_key(), x, y, batch_size=self.batch_size)
         # バッチごとのロス
         batch_loss_list = []
+        # バッチごとのサイズ
+        batch_size_list = []
         # 状態変数の初期化
         variables = self.variables
         # ミニバッチ単位でロスを計算
         for i, (X, Y) in enumerate(loader): 
             loss, variables = self.loss_function(self.state.params, variables, X, Y)
+            batch_size_list.append(X.shape[0])
             batch_loss_list.append(loss)
 
         # 平均値を返す
-        return np.mean(batch_loss_list)
+        return np.average(np.array(batch_loss_list), weights=np.array(batch_size_list))
 
 
     def __calc_current_loss(self, epoch_idx, X_TRAIN, Y_TRAIN, X_VALID, Y_VALID):

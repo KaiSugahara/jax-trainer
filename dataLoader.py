@@ -31,7 +31,7 @@ class dataLoader:
 
     def __next__(self):
         
-        if self.batch_idx == self.batch_num:
+        if self.batch_idx > self.batch_num:
             
             # 終了
             raise StopIteration()
@@ -39,7 +39,7 @@ class dataLoader:
         else:
             
             # データindexをシャッフル
-            indices = jax.lax.dynamic_slice_in_dim(self.shuffled_indices, self.batch_idx*self.batch_size, self.batch_size)
+            indices = self.shuffled_indices[ self.batch_idx*self.batch_size : (self.batch_idx+1)*self.batch_size ]
             
             # バッチindexを更新
             self.batch_idx += 1
