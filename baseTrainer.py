@@ -48,6 +48,35 @@ class baseTrainer:
 
         return subkey
 
+    def __early_stopping(self, epoch_idx):
+
+        """
+            func: Early Stoppingの判定
+        """
+
+        # EarlyStoppingを実施しない場合は継続判定
+        if self.es_patience == 0:
+            return False
+
+        # 検証ロスが計算されていない場合は継続判定
+        if "VALID_LOSS" not in self.loss_history[epoch_idx+1].keys():
+            return False
+
+        # 検証ロスが増加した場合はes_counter++
+        if self.loss_history[epoch_idx+1]["VALID_LOSS"] > self.loss_history[epoch_idx]["VALID_LOSS"]:
+            self.es_counter = getattr(self, "es_counter", 0) + 1
+        # 増加しなかった場合はes_counterをリセット
+        else:
+            self.es_counter = 0
+
+        print(getattr(self, "es_counter", 0))
+
+        # es_counterがes_patienceを上回った場合はStop判定
+        if self.es_counter >= self.es_patience:
+            return True
+        
+        # 上回らなかった場合は継続判定
+        return False
 
     def score(self, x, y):
 
@@ -210,6 +239,9 @@ class baseTrainer:
             # 現在のロスを計算
             self.__calc_current_loss(epoch_idx, X_TRAIN, Y_TRAIN, X_VALID, Y_VALID)
 
+            # EarlyStopping判定
+            if self.__early_stopping(epoch_idx): break
+
         return self
 
     def get_param(self, attr_name):
@@ -255,7 +287,7 @@ class baseTrainer:
         return self
 
 
-    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, weight_decay=0, calc_fullbatch_loss=False, run=None, **other_params):
+    def __init__(self, model, dataLoader, epoch_nums=128, batch_size=512, learning_rate=0.001, seed=0, verbose=2, weight_decay=0, calc_fullbatch_loss=False, run=None, es_patience=0, **other_params):
 
         """
             args:
@@ -270,6 +302,7 @@ class baseTrainer:
                 calc_fullbatch_loss: エポック毎にフルバッチの訓練損失を計算し直すか？
                 run: MLFlow Run
                 other_params: その他のモデル特有のハイパーパラメータ, 可変長引数
+                es_patience: patience to judge early stopping
         """
 
         # ハイパーパラメータをセット
