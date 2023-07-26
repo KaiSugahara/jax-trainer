@@ -69,8 +69,6 @@ class baseTrainer:
         else:
             self.es_counter = 0
 
-        print(getattr(self, "es_counter", 0))
-
         # es_counterがes_patienceを上回った場合はStop判定
         if self.es_counter >= self.es_patience:
             return True
